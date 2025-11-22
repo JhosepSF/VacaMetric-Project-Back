@@ -1,9 +1,14 @@
 from pathlib import Path
 import torch
 import warnings
+import gc
 
 # Suprimir warnings de XGBoost sobre pickle
 warnings.filterwarnings('ignore', category=UserWarning, module='xgboost')
+
+# Forzar solo CPU para reducir uso de memoria
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = ''
 
 BASE_DIR = Path(__file__).resolve().parent.parent  
 ARTEFACTOS = BASE_DIR / 'artefactos_modelo'
@@ -20,9 +25,8 @@ _xgb_models = None
 _cow_id_cache = None
 
 def get_device():
-    """Obtener dispositivo (CPU/CUDA)"""
-    from .backbone import DEVICE
-    return DEVICE
+    """Obtener dispositivo (CPU solo)"""
+    return torch.device('cpu')
 
 def load_circle_model():
     """Lazy loading del modelo de detección de círculo"""
@@ -49,9 +53,12 @@ def load_backbone():
     global _backbone
     if _backbone is None:
         print("[MODELS] Cargando backbone WideResNet-50-2...")
-        from .backbone import BackboneTIMM, DEVICE
+        from .backbone import BackboneTIMM
+        device = torch.device('cpu')
         _backbone = BackboneTIMM(model_name='wide_resnet50_2', trainable=False)
-        _backbone.to(DEVICE).eval()
+        _backbone.to(device).eval()
+        # Liberar memoria innecesaria
+        gc.collect()
         print(f"[MODELS] ✓ Backbone WideResNet-50-2 cargado ({_backbone.out_dim} features)")
     return _backbone
 
