@@ -88,22 +88,11 @@ def load_xgb_models():
         print(f"[MODELS] ✅ Ensemble XGBoost: {len(_xgb_models)}/10 folds cargados")
     return _xgb_models
 
-# Propiedades para acceso compatible
-@property
-def circle_model():
-    return load_circle_model()
-
-@property  
-def cow_model():
-    return load_cow_model()
-
-@property
-def backbone():
-    return load_backbone()
-
-@property
-def xgb_models():
-    return load_xgb_models()
+# Aliases para compatibilidad (llamar directamente a las funciones)
+circle_model = load_circle_model
+cow_model = load_cow_model
+backbone = load_backbone
+xgb_models = load_xgb_models
 
 # Helper para obtener id de 'cow'
 def get_cow_class_id_cached(model):
