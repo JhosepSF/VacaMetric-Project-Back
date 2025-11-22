@@ -12,7 +12,7 @@ from .preprocess import (
     segmentar_vaca_y_generar_contorno_y_silueta,
     morph_from_silhouette_img
 )
-from .models_loader import backbone, circle_model, cow_model, xgb_models
+from . import models_loader
 
 # Carpeta para guardar imágenes de debug
 DEBUG_DIR = Path(__file__).parent.parent / 'debug_images'
@@ -77,7 +77,7 @@ def estimate_weight_from_bytes(file_obj, save_debug=False) -> Dict[str, Any]:
 
     # 1) Normalizar por círculo (canvas fijo)
     print(f"\n[PIPELINE] Iniciando detección del círculo de referencia...")
-    norm_img, circ = normalize_by_circle(bgr, circle_model=circle_model, debug_dir=DEBUG_DIR if save_debug else None)
+    norm_img, circ = normalize_by_circle(bgr, circle_model=models_loader.load_circle_model(), debug_dir=DEBUG_DIR if save_debug else None)
     print(f"[PIPELINE] Normalización completa.\n")
     
     # Información de círculo (sin guardar imagen)
@@ -90,7 +90,7 @@ def estimate_weight_from_bytes(file_obj, save_debug=False) -> Dict[str, Any]:
 
     # 2) Segmentar vaca y obtener contorno + silueta
     contorno, silueta = segmentar_vaca_y_generar_contorno_y_silueta(
-        norm_img, cow_model, circle_model=circle_model
+        norm_img, models_loader.load_cow_model(), circle_model=models_loader.load_circle_model()
     )
     
     # Información de segmentación (sin guardar imágenes)
@@ -112,21 +112,23 @@ def estimate_weight_from_bytes(file_obj, save_debug=False) -> Dict[str, Any]:
     x_cont = cont_tensor.unsqueeze(0).to(DEVICE)  # (1,3,224,224)
     x_sil  = sil_tensor.unsqueeze(0).to(DEVICE)
 
-    # 5) Embeddings EfficientNet-B0 (1280 features por imagen)
-    backbone.eval()
+    # 5) Embeddings WideResNet-50-2 (2048 features por imagen)
+    backbone_model = models_loader.load_backbone()
+    backbone_model.eval()
     with torch.no_grad():
-        zc = backbone(x_cont).cpu().numpy()   # (1,1280)
-        zs = backbone(x_sil).cpu().numpy()    # (1,1280)
+        zc = backbone_model(x_cont).cpu().numpy()   # (1,2048)
+        zs = backbone_model(x_sil).cpu().numpy()    # (1,2048)
 
     # 6) Vector final de features = [Zc, Zs, morph] = 1280+1280+9 = 2569
     feat = np.concatenate([zc, zs, morph_vec[None, :]], axis=1)  # (1, 2569)
 
     # 7) Predicción con TODOS los folds (ensemble)
-    print(f"\n[ENSEMBLE] Prediciendo con {len(xgb_models)} folds...")
+    xgb_ensemble = models_loader.load_xgb_models()
+    print(f"\n[ENSEMBLE] Prediciendo con {len(xgb_ensemble)} folds...")
     predicciones = []
     folds_info = []
     
-    for fold_idx, model in xgb_models:
+    for fold_idx, model in xgb_ensemble:
         peso_fold = float(model.predict(feat)[0])
         predicciones.append(peso_fold)
         folds_info.append({'fold': fold_idx, 'peso_kg': peso_fold})
@@ -242,8 +244,8 @@ def estimate_weight_from_bytes(file_obj, save_debug=False) -> Dict[str, Any]:
         },
         'advertencias': advertencias,
         'detalles_ensemble': {
-            'num_modelos': len(xgb_models),
-            'modelos_usados': [fold_idx for fold_idx, _ in xgb_models],
+            'num_modelos': len(xgb_ensemble),
+            'modelos_usados': [fold_idx for fold_idx, _ in xgb_ensemble],
             'peso_minimo': round(peso_min, 2),
             'peso_maximo': round(peso_max, 2),
             'desviacion_std': round(peso_std, 2),
