@@ -33,8 +33,15 @@ def load_circle_model():
     global _circle_model
     if _circle_model is None:
         print("[MODELS] Cargando círculo YOLO...")
+        import gc
         from ultralytics.models.yolo import YOLO
+        
+        # Configurar ultralytics para usar menos memoria
+        import ultralytics
+        ultralytics.checks.check_requirements = lambda x: None  # Skip checks
+        
         _circle_model = YOLO(str(CIRCLE_MODEL_PATH))
+        gc.collect()
         print("[MODELS] ✓ Círculo YOLO cargado")
     return _circle_model
 
@@ -43,8 +50,10 @@ def load_cow_model():
     global _cow_model
     if _cow_model is None:
         print("[MODELS] Cargando vaca YOLO...")
+        import gc
         from ultralytics.models.yolo import YOLO
         _cow_model = YOLO(str(COW_MODEL_PATH))
+        gc.collect()
         print("[MODELS] ✓ Vaca YOLO cargado")
     return _cow_model
 
