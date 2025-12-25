@@ -1,0 +1,12 @@
+django
+djangorestframework
+gunicorn
+torch
+timm==1.0.9
+ultralytics==8.3.0
+xgboost==2.1.4
+scikit-learn==1.5.2
+opencv-python-headless
+pillow
+numpy==1.26.4
+joblib
