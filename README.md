@@ -201,7 +201,7 @@ python manage.py test
 - Rango de peso soportado: 100-800 kg
 
 ## 👥 Autor
-Jhosep SF
+Miguel Angel Valles Coral
 
 ## 📄 Licencia
 Este proyecto es parte de un trabajo académico.
